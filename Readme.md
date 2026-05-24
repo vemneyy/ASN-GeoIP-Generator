@@ -1,19 +1,19 @@
 # ASN GeoIP Generator
 
-Этот проект каждые 6 часов автоматически генерирует файл `asn.dat`, содержащий **только номера ASN (Autonomous Systems)** для использования в различных Proxy/VPN приложениях.
+This project automatically generates an `asn.dat` file every 6 hours containing only **Autonomous System Numbers (ASN)** for use in various proxy and VPN applications.
 
-## Источник данных
+## Data Source
 
-- [Loyalsoldier/geoip](https://github.com/Loyalsoldier/geoip) - GeoLite2 ASN CSV файлы (на основе MaxMind GeoLite2)
+- [P3TERX/GeoLite.mmdb](https://github.com/P3TERX/GeoLite.mmdb) - GeoLite2 ASN MMDB database (based on MaxMind GeoLite2)
 
-## Выходной формат
+## Output Formats
 
-- `asn.dat` - V2Ray/Xray-совместимый файл, содержащий только ASN номера
-- `asn-text.zip` - ZIP-архив с текстовыми файлами (as1.txt, as10001.txt, ...) содержащими IP сети на каждой строке
+- `asn.dat` - A V2Ray/Xray-compatible database file containing only ASN data.
+- `asn-text.zip` - A ZIP archive containing plain text files (`as1.txt`, `as10001.txt`, etc.) with IP subnets listed on each line.
 
-## Использование AS номеров
+## Using AS Numbers
 
-Возможность обращаться к IP-адресам любой автономной системы по её AS номеру:
+This allows routing traffic to IP addresses belonging to specific autonomous systems by using their AS numbers:
 
 ```
 asn.dat:AS13238
@@ -21,7 +21,7 @@ asn.dat:AS15169
 asn.dat:AS13335
 ```
 
-**Пример конфигурации V2Ray/Xray:**
+**V2Ray/Xray Configuration Example:**
 
 ```json
 {
@@ -40,10 +40,10 @@ asn.dat:AS13335
 }
 ```
 
-### Популярные AS номера
+### Popular AS Numbers
 
-| AS номер | Организация |
-|----------|-------------|
+| AS Number | Organization |
+|-----------|--------------|
 | AS13238 | Yandex LLC |
 | AS44534 | Yandex.Cloud LLC |
 | AS200350 | Yandex.Cloud LLC |
@@ -54,9 +54,9 @@ asn.dat:AS13335
 | AS62041 | Telegram Messenger Inc |
 | AS59930 | Telegram Messenger LLP |
 
-## Скачать
+## Download
 
-По данному адресу всегда доступна последняя версия файлов:
+The latest version of the files is always available at the following links:
 
 - **asn.dat**
     - [https://raw.githubusercontent.com/vemneyy/russia-blocked-geoip/release/asn.dat](https://raw.githubusercontent.com/vemneyy/russia-blocked-geoip/release/asn.dat)
@@ -66,7 +66,9 @@ asn.dat:AS13335
     - [https://raw.githubusercontent.com/vemneyy/russia-blocked-geoip/release/asn-text.zip](https://raw.githubusercontent.com/vemneyy/russia-blocked-geoip/release/asn-text.zip)
     - [https://cdn.jsdelivr.net/gh/vemneyy/russia-blocked-geoip@release/asn-text.zip](https://cdn.jsdelivr.net/gh/vemneyy/russia-blocked-geoip@release/asn-text.zip)
 
-## Сборка
+## Build
+
+To compile and run the generator locally:
 
 ```bash
 go build -o asn-generator ./
@@ -75,5 +77,6 @@ go build -o asn-generator ./
 
 ## Credits
 
-- [Loyalsoldier/geoip](https://github.com/Loyalsoldier/geoip) - источник ASN данных
-- [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) - оригинальная база данных ASN
+- [P3TERX/GeoLite.mmdb](https://github.com/P3TERX/GeoLite.mmdb) - ASN database source
+- [Loyalsoldier/geoip](https://github.com/Loyalsoldier/geoip) - Database format reference
+- [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) - Original ASN database provider
