@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package geoip;
+
+option go_package = "github.com/vemneyy/russia-blocked-geoip/proto/geoip";
+
+// CIDR represents an IP CIDR block
+message CIDR {
+  // IP address, should be either 4 or 16 bytes
+  bytes ip = 1;
+  // Number of leading ones in the network mask
+  uint32 prefix = 2;
+}
+
+// GeoIP represents a geoip entry with country code and CIDRs
+message GeoIP {
+  string country_code = 1;
+  repeated CIDR cidr = 2;
+  bool inverse_match = 3;
+}
+
+// GeoIPList is a list of GeoIP entries
+message GeoIPList {
+  repeated GeoIP entry = 1;
+}
