@@ -1,25 +1,40 @@
 # ASN GeoIP Generator
 
-This project automatically generates an `asn.dat` file every 6 hours containing only **Autonomous System Numbers (ASN)** for use in various proxy and VPN applications.
+This project automatically generates an `asn.dat` file every 6 hours containing **Autonomous System Numbers (ASN)**, plus **per-country ASN groups**, for use in various proxy and VPN applications.
 
 ## Data Source
 
-- [P3TERX/GeoLite.mmdb](https://github.com/P3TERX/GeoLite.mmdb) - GeoLite2 ASN MMDB database (based on MaxMind GeoLite2)
+- [P3TERX/GeoLite.mmdb](https://github.com/P3TERX/GeoLite.mmdb) - GeoLite2 ASN MMDB database (based on MaxMind GeoLite2) — provides ASN → IP networks.
+- [NRO delegated statistics](https://ftp.ripe.net/pub/stats/ripencc/nro-stats/latest/nro-delegated-stats) - the combined RIR (ARIN/RIPE/APNIC/LACNIC/AFRINIC) registry that maps every allocated/assigned ASN to the country it is registered/delegated to. This is required because the GeoLite2-ASN database itself carries **no** country information.
 
 ## Output Formats
 
-- `asn.dat` - A V2Ray/Xray-compatible database file containing only ASN data.
-- `asn-text.zip` - A ZIP archive containing plain text files (`as1.txt`, `as10001.txt`, etc.) with IP subnets listed on each line.
+- `asn.dat` - A V2Ray/Xray-compatible database file containing both per-ASN data and per-country ASN groups.
+- `asn-text.zip` - A ZIP archive containing plain text files with IP subnets listed on each line:
+    - per-ASN files: `as1.txt`, `as13335.txt`, …
+    - per-country files: `as-ru.txt`, `as-us.txt`, …
 
 ## Using AS Numbers
 
-This allows routing traffic to IP addresses belonging to specific autonomous systems by using their AS numbers:
+Route traffic to IP addresses belonging to specific autonomous systems by their AS numbers:
 
 ```
 asn.dat:AS13238
 asn.dat:AS15169
 asn.dat:AS13335
 ```
+
+## Using Country ASN Groups
+
+Each country group (`AS-XX`, where `XX` is the ISO 3166-1 alpha-2 code) contains the IP networks of **every** ASN registered/delegated to that country, combined into a single tag:
+
+```
+asn.dat:AS-RU
+asn.dat:AS-US
+asn.dat:AS-DE
+```
+
+> Note: a handful of non-country region codes used by the registries may also appear — `AS-EU` (RIPE multi-country) and `AS-AP` (APNIC region). Codes marked unknown (`ZZ`) are skipped.
 
 **V2Ray/Xray Configuration Example:**
 
@@ -32,7 +47,8 @@ asn.dat:AS13335
         "outboundTag": "direct",
         "ip": [
           "ext:asn.dat:AS13238",
-          "ext:asn.dat:AS44534"
+          "ext:asn.dat:AS44534",
+          "ext:asn.dat:AS-RU"
         ]
       }
     ]
@@ -53,6 +69,15 @@ asn.dat:AS13335
 | AS16509 | Amazon.com, Inc. (AWS) |
 | AS62041 | Telegram Messenger Inc |
 | AS59930 | Telegram Messenger LLP |
+
+### Country Group Examples
+
+| Tag | Meaning |
+|-----|---------|
+| AS-RU | All ASNs registered to Russia |
+| AS-US | All ASNs registered to the United States |
+| AS-DE | All ASNs registered to Germany |
+| AS-CN | All ASNs registered to China |
 
 ## Download
 
@@ -80,3 +105,4 @@ go build -o asn-generator ./
 - [P3TERX/GeoLite.mmdb](https://github.com/P3TERX/GeoLite.mmdb) - ASN database source
 - [Loyalsoldier/geoip](https://github.com/Loyalsoldier/geoip) - Database format reference
 - [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) - Original ASN database provider
+- [NRO / RIR delegated statistics](https://www.nro.net/about/rirs/statistics/) - ASN → country mapping
