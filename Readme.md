@@ -1,6 +1,6 @@
 # ASN GeoIP Generator
 
-This project automatically generates an `asn.dat` file every 6 hours containing **Autonomous System Numbers (ASN)**, plus **per-country ASN groups**, for use in various proxy and VPN applications.
+This project automatically generates an `asn.dat` file every 72 hours containing **Autonomous System Numbers (ASN)**, plus **per-country ASN groups**, for use in various proxy and VPN applications.
 
 ## Data Source
 
