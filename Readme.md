@@ -84,12 +84,12 @@ asn.dat:AS-DE
 The latest version of the files is always available at the following links:
 
 - **asn.dat**
-    - [https://raw.githubusercontent.com/vemneyy/russia-blocked-geoip/release/asn.dat](https://raw.githubusercontent.com/vemneyy/russia-blocked-geoip/release/asn.dat)
-    - [https://cdn.jsdelivr.net/gh/vemneyy/russia-blocked-geoip@release/asn.dat](https://cdn.jsdelivr.net/gh/vemneyy/russia-blocked-geoip@release/asn.dat)
+    - [https://raw.githubusercontent.com/vemneyy/russia-blocked-geoip/release/asn.dat](https://raw.githubusercontent.com/vemneyy/ASN-GeoIP-Generator/release/asn.dat)
+    - [https://cdn.jsdelivr.net/gh/vemneyy/russia-blocked-geoip@release/asn.dat](https://cdn.jsdelivr.net/gh/vemneyy/ASN-GeoIP-Generator@release/asn.dat)
 
 - **asn-text.zip**
-    - [https://raw.githubusercontent.com/vemneyy/russia-blocked-geoip/release/asn-text.zip](https://raw.githubusercontent.com/vemneyy/russia-blocked-geoip/release/asn-text.zip)
-    - [https://cdn.jsdelivr.net/gh/vemneyy/russia-blocked-geoip@release/asn-text.zip](https://cdn.jsdelivr.net/gh/vemneyy/russia-blocked-geoip@release/asn-text.zip)
+    - [https://raw.githubusercontent.com/vemneyy/russia-blocked-geoip/release/asn-text.zip](https://raw.githubusercontent.com/vemneyy/ASN-GeoIP-Generator/release/asn-text.zip)
+    - [https://cdn.jsdelivr.net/gh/vemneyy/russia-blocked-geoip@release/asn-text.zip](https://cdn.jsdelivr.net/gh/vemneyy/ASN-GeoIP-Generator@release/asn-text.zip)
 
 ## Build
 
