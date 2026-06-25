@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -59,7 +60,7 @@ func main() {
 			asnData[code] = cidrs
 		}
 	}
-	
+
 	fmt.Println("\nApplying custom aliases from aliases.json...")
 	aliases, err := loadAliases("aliases.json")
 	if err != nil {
@@ -68,6 +69,10 @@ func main() {
 		applyAliases(asnData, aliases)
 	} else {
 		fmt.Println("  No aliases.json found or file is empty, skipping.")
+	}
+
+	for _, cidrs := range asnData {
+		sortCIDRs(cidrs)
 	}
 
 	fmt.Println("\nGenerating asn.dat...")
@@ -85,6 +90,24 @@ func main() {
 	fmt.Println("Generated asn-text.zip (text files with IP networks)")
 
 	fmt.Println("\nDone!")
+}
+
+func sortCIDRs(cidrs []*geoip.CIDR) {
+	sort.Slice(cidrs, func(i, j int) bool {
+		lenI := len(cidrs[i].Ip)
+		lenJ := len(cidrs[j].Ip)
+		
+		if lenI != lenJ {
+			return lenI < lenJ
+		}
+		
+		cmp := bytes.Compare(cidrs[i].Ip, cidrs[j].Ip)
+		if cmp != 0 {
+			return cmp < 0
+		}
+		
+		return cidrs[i].Prefix < cidrs[j].Prefix
+	})
 }
 
 func loadAliases(filename string) (map[string][]string, error) {
@@ -106,7 +129,7 @@ func loadAliases(filename string) (map[string][]string, error) {
 func applyAliases(asnData map[string][]*geoip.CIDR, aliases map[string][]string) {
 	for aliasName, asns := range aliases {
 		var combined []*geoip.CIDR
-		
+
 		for _, asn := range asns {
 			asnKey := strings.ToUpper(strings.TrimSpace(asn))
 			if !strings.HasPrefix(asnKey, "AS") {
