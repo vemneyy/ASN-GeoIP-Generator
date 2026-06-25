@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
@@ -25,11 +26,6 @@ var httpClient = &http.Client{
 }
 
 const asnMMDBURL = "https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-ASN.mmdb"
-
-// NRO combined delegated statistics. Maps every allocated/assigned ASN to the
-// country it is registered/delegated to. This is the authoritative source for
-// "which country an AS belongs to", because the GeoLite2-ASN database itself
-// does NOT carry any country information.
 const nroStatsURL = "https://ftp.ripe.net/pub/stats/ripencc/nro-stats/latest/nro-delegated-stats"
 
 type ASNRecord struct {
@@ -37,13 +33,11 @@ type ASNRecord struct {
 }
 
 func main() {
-	// Create output directory
 	if err := os.MkdirAll("output", 0755); err != nil {
 		fmt.Printf("Error creating output directory: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Download and process ASN data from P3TERX (MMDB)
 	fmt.Println("Downloading ASN mmdb data from P3TERX...")
 	asnData, err := downloadAndParseMMDB()
 	if err != nil {
@@ -52,34 +46,37 @@ func main() {
 	}
 	fmt.Printf("  ASN groups extracted: %d\n", len(asnData))
 
-	// Download ASN -> country mapping and build per-country groups (AS-RU, AS-US, ...)
 	fmt.Println("\nDownloading ASN-to-country mapping from NRO...")
 	asnCountry, err := downloadASNCountryMap()
 	if err != nil {
-		// Don't break the whole build over a flaky third-party endpoint:
-		// keep producing the per-ASN data, just skip the country tags.
 		fmt.Printf("  WARNING: could not build ASN-to-country map: %v\n", err)
 		fmt.Println("  Country tags (AS-XX) are SKIPPED for this build.")
 	} else {
 		fmt.Printf("  ASN-to-country entries: %d\n", len(asnCountry))
 		countryData := buildCountryData(asnData, asnCountry)
 		fmt.Printf("  Country groups built: %d\n", len(countryData))
-		// Merge the country groups into the main dataset so that both asn.dat
-		// and asn-text.zip pick them up automatically.
 		for code, cidrs := range countryData {
 			asnData[code] = cidrs
 		}
 	}
+	
+	fmt.Println("\nApplying custom aliases from aliases.json...")
+	aliases, err := loadAliases("aliases.json")
+	if err != nil {
+		fmt.Printf("  Error loading aliases.json: %v\n", err)
+	} else if len(aliases) > 0 {
+		applyAliases(asnData, aliases)
+	} else {
+		fmt.Println("  No aliases.json found or file is empty, skipping.")
+	}
 
-	// Generate asn.dat (ASN numbers + country groups)
 	fmt.Println("\nGenerating asn.dat...")
 	if err := generateDatFile(asnData, "output/asn.dat"); err != nil {
 		fmt.Printf("Error generating asn.dat: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println("Generated asn.dat (ASN numbers + country groups)")
+	fmt.Println("Generated asn.dat (ASN numbers + country groups + aliases)")
 
-	// Generate text files and zip them
 	fmt.Println("\nGenerating asn-text.zip...")
 	if err := generateTextFilesZip(asnData, "output/asn-text.zip"); err != nil {
 		fmt.Printf("Error generating asn-text.zip: %v\n", err)
@@ -88,6 +85,46 @@ func main() {
 	fmt.Println("Generated asn-text.zip (text files with IP networks)")
 
 	fmt.Println("\nDone!")
+}
+
+func loadAliases(filename string) (map[string][]string, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var aliases map[string][]string
+	if err := json.Unmarshal(data, &aliases); err != nil {
+		return nil, fmt.Errorf("invalid json format: %w", err)
+	}
+	return aliases, nil
+}
+
+func applyAliases(asnData map[string][]*geoip.CIDR, aliases map[string][]string) {
+	for aliasName, asns := range aliases {
+		var combined []*geoip.CIDR
+		
+		for _, asn := range asns {
+			asnKey := strings.ToUpper(strings.TrimSpace(asn))
+			if !strings.HasPrefix(asnKey, "AS") {
+				asnKey = "AS" + asnKey
+			}
+
+			if cidrs, ok := asnData[asnKey]; ok {
+				combined = append(combined, cidrs...)
+			} else {
+				fmt.Printf("    WARNING: ASN %s not found for alias '%s'\n", asnKey, aliasName)
+			}
+		}
+
+		if len(combined) > 0 {
+			asnData[aliasName] = combined
+			fmt.Printf("  Created alias: '%s' (merged %d ASNs, %d CIDR blocks)\n", aliasName, len(asns), len(combined))
+		}
+	}
 }
 
 func downloadAndParseMMDB() (map[string][]*geoip.CIDR, error) {
@@ -152,15 +189,6 @@ func downloadAndParseMMDB() (map[string][]*geoip.CIDR, error) {
 	return asnData, nil
 }
 
-// downloadASNCountryMap downloads the NRO combined delegated-stats file and
-// builds a map of ASN -> ISO country code (e.g. 12345 -> "RU").
-//
-// Record format (pipe separated):
-//
-//	registry|cc|type|start|value|date|status[|opaque-id]
-//
-// For ASN records "type" is "asn", "start" is the first AS number in the block
-// and "value" is the number of consecutive AS numbers in that block.
 func downloadASNCountryMap() (map[uint32]string, error) {
 	fmt.Printf("  Downloading %s...\n", nroStatsURL)
 
@@ -177,7 +205,6 @@ func downloadASNCountryMap() (map[uint32]string, error) {
 	result := make(map[uint32]string)
 
 	scanner := bufio.NewScanner(resp.Body)
-	// Lines are short, but allow a generous buffer just in case.
 	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024)
 
 	for scanner.Scan() {
@@ -187,7 +214,6 @@ func downloadASNCountryMap() (map[uint32]string, error) {
 		}
 
 		fields := strings.Split(line, "|")
-		// Need at least: registry|cc|type|start|value|date|status
 		if len(fields) < 7 {
 			continue
 		}
@@ -196,7 +222,6 @@ func downloadASNCountryMap() (map[uint32]string, error) {
 			continue
 		}
 
-		// Only keep resources actually delegated to a holder.
 		status := fields[6]
 		if status != "allocated" && status != "assigned" {
 			continue
@@ -237,8 +262,6 @@ func downloadASNCountryMap() (map[uint32]string, error) {
 	return result, nil
 }
 
-// isCountryCode reports whether s looks like a 2-letter region code we want to
-// keep. We skip the placeholder "ZZ" (unknown) and the summary marker "*".
 func isCountryCode(s string) bool {
 	if len(s) != 2 || s == "ZZ" {
 		return false
@@ -251,12 +274,9 @@ func isCountryCode(s string) bool {
 	return true
 }
 
-// buildCountryData groups all CIDRs of every known ASN under a per-country key
-// like "AS-RU" / "AS-US", using the ASN -> country mapping.
 func buildCountryData(asnData map[string][]*geoip.CIDR, asnCountry map[uint32]string) map[string][]*geoip.CIDR {
 	countryData := make(map[string][]*geoip.CIDR)
 
-	// Iterate ASN keys in sorted order for deterministic output.
 	keys := make([]string, 0, len(asnData))
 	for k := range asnData {
 		keys = append(keys, k)
@@ -318,7 +338,6 @@ func generateTextFilesZip(data map[string][]*geoip.CIDR, outputPath string) erro
 	zipWriter := zip.NewWriter(zipFile)
 	defer zipWriter.Close()
 
-	// Sort keys for deterministic output
 	keys := make([]string, 0, len(data))
 	for k := range data {
 		keys = append(keys, k)
