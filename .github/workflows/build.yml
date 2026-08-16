@@ -39,23 +39,11 @@ jobs:
           go build -o asn-generator ./
           ./asn-generator
 
-      - name: Generate sha256 checksum for release files
+      - name: Generate sha256 checksums
         run: |
           cd ./output || exit 1
-          sha256sum asn.dat > ./asn.dat.sha256sum
-          sha256sum asn-text.zip > ./asn-text.zip.sha256sum
-
-      - name: Rename output files to keep history
-        run: |
-          cd ./output || exit 1
-          mv asn.dat "asn-${{ env.TAG_NAME }}.dat"
-          mv asn-text.zip "asn-text-${{ env.TAG_NAME }}.zip"
-          if [ -f "asn.dat.sha256sum" ]; then
-            mv "asn.dat.sha256sum" "asn-${{ env.TAG_NAME }}.dat.sha256sum"
-          fi
-          if [ -f "asn-text.zip.sha256sum" ]; then
-            mv "asn-text.zip.sha256sum" "asn-text-${{ env.TAG_NAME }}.zip.sha256sum"
-          fi
+          sha256sum asn.dat > asn.dat.sha256sum
+          sha256sum asn-text.zip > asn-text.zip.sha256sum
 
       - name: Git push assets to "release" branch
         run: |
@@ -63,26 +51,15 @@ jobs:
           git init
           git config --local user.name "github-actions[bot]"
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          
-          # Добавляем удаленный репозиторий и тянем ветку release, чтобы видеть старые файлы
           git remote add geoip "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
           git fetch geoip release || true
-          
-          # Если ветка существует на удалении - переключаемся на неё, иначе создаем новую
+
           if git branch -r | grep 'geoip/release' >/dev/null 2>&1; then
             git checkout -b release geoip/release
           else
             git checkout -b release
           fi
-          
-          # ОЧИСТКА СТАРЫХ ФАЙЛОВ:
-          # Ищем файлы asn-*.dat, сортируем их и удаляем всё, кроме последних 5 (head -n -5)
-          ls asn-*.dat 2>/dev/null | sort | head -n -5 | xargs -r rm
-          
-          # То же самое для zip файлов
-          ls asn-text-*.zip 2>/dev/null | sort | head -n -5 | xargs -r rm
-          
-          # Коммитим изменения
+
           git add -A
           git commit -m "${{ env.RELEASE_NAME }}"
           git push -f -u geoip release
@@ -94,20 +71,19 @@ jobs:
             curl -i "https://purge.jsdelivr.net/gh/${{ github.repository }}@release/${file}"
           done
 
-      # Обновленные шаги загрузки релизов с учетом новых имен файлов
       - name: Upload asn.dat to GitHub release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./output/asn-${{ env.TAG_NAME }}.dat
+          file: ./output/asn.dat
           release_name: ${{ env.RELEASE_NAME }}
           tag: ${{ env.TAG_NAME }}
 
-      - name: Upload sha256sum to GitHub release
+      - name: Upload asn.dat.sha256sum to GitHub release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./output/asn-${{ env.TAG_NAME }}.dat.sha256sum
+          file: ./output/asn.dat.sha256sum
           release_name: ${{ env.RELEASE_NAME }}
           tag: ${{ env.TAG_NAME }}
 
@@ -115,14 +91,27 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./output/asn-text-${{ env.TAG_NAME }}.zip
+          file: ./output/asn-text.zip
           release_name: ${{ env.RELEASE_NAME }}
           tag: ${{ env.TAG_NAME }}
 
-      - name: Upload zip sha256sum to GitHub release
+      - name: Upload asn-text.zip.sha256sum to GitHub release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./output/asn-text-${{ env.TAG_NAME }}.zip.sha256sum
+          file: ./output/asn-text.zip.sha256sum
           release_name: ${{ env.RELEASE_NAME }}
           tag: ${{ env.TAG_NAME }}
+
+      - name: Delete old releases and tags (keep last 5)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get all releases sorted by date (oldest first), skip last 5
+          gh release list --repo "${{ github.repository }}" --limit 1000 \
+            | tail -n +6 \
+            | awk '{print $1}' \
+            | while read -r tag; do
+                echo "Deleting release and tag: $tag"
+                gh release delete "$tag" --repo "${{ github.repository }}" --yes --cleanup-tag
+              done
